@@ -8,7 +8,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_args() -> Self {
+    pub fn from_args() -> Result<Self, String> {
         let matches = Command::new("Web3 Transaction Listener")
             .version("1.0")
             .author("Author <author@example.com>")
@@ -29,13 +29,22 @@ impl Config {
             )
             .get_matches();
 
-        let ws_url = matches.get_one::<String>("url").unwrap().to_string();
-        let target_address = Address::from_str(matches.get_one::<String>("address").unwrap())
-            .expect("Invalid Ethereum address format");
+        let ws_url = matches
+            .get_one::<String>("url")
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "ws://127.0.0.1:8545/".to_string());
 
-        Config {
+        let target_address = matches
+            .get_one::<String>("address")
+            .ok_or_else(|| "Ethereum address is required".to_string())
+            .and_then(|s| {
+                Address::from_str(s)
+                    .map_err(|_| "Invalid Ethereum address format".to_string())
+            })?;
+
+        Ok(Config {
             ws_url,
             target_address,
-        }
+        })
     }
 }
