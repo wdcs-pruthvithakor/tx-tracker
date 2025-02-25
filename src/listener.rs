@@ -29,17 +29,32 @@ impl Listener {
                     // Fetch transaction details
                     match self.web3.eth().transaction(web3::types::TransactionId::Hash(tx_hash)).await {
                         Ok(Some(tx)) => {
-                            if let Some(to_address) = tx.to {
-                                if to_address == self.target_address {
-                                    let value_in_eth = self.convert_wei_to_eth(tx.value);
-                                    println!(
-                                        "New Transaction Received!\nTx Hash: {:?}\nFrom: {:?}\nTo: {:?}\nValue: {:?} ETH\n",
-                                        tx.hash,
-                                        tx.from,
-                                        to_address,
-                                        value_in_eth
-                                    );
+                            // Handle `from` and `to` addresses
+                            let from_address = match tx.from {
+                                Some(from) => from,
+                                None => {
+                                    eprintln!("Missing 'from' address in transaction: {:?}", tx_hash);
+                                    continue;
                                 }
+                            };
+
+                            let to_address = match tx.to {
+                                Some(to) => to,
+                                None => {
+                                    eprintln!("Missing 'to' address in transaction: {:?}", tx_hash);
+                                    continue;
+                                }
+                            };
+
+                            if to_address == self.target_address {
+                                let value_in_eth = self.convert_wei_to_eth(tx.value);
+                                println!(
+                                    "New Transaction Received!\nTx Hash: {:?}\nFrom: {:?}\nTo: {:?}\nValue: {:?} ETH\n",
+                                    tx.hash,
+                                    from_address,
+                                    to_address,
+                                    value_in_eth
+                                );
                             }
                         }
                         Ok(None) => eprintln!("Transaction not found for hash: {:?}", tx_hash),
