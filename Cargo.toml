@@ -1,0 +1,18 @@
+[package]
+name = "tx_tracker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+web3 = { version = "0.19"}
+tokio ={ version = "1", features = ["full"]}
+dotenv = "0.15"
+# secp256k1 = { version = "0.30", features = ["rand"]}
+# tiny-keccak = "2.0"
+# rand = { version = "0.8.5", features = ["getrandom"]}
+# hex = "0.4.3"
+# ethereum-types = "0.14"
+futures = "0.3"
+# native-tls = "0.2"
+clap = { version = "4.5", features = ["derive"] }
+# anyhow = "1"
