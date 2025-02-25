@@ -17,16 +17,9 @@ async fn main() {
     };
 
     // Initialize the listener with the given config
-    let listener = match Listener::new(&config).await {
-        Ok(listener) => listener,
-        Err(e) => {
-            eprintln!("Error initializing listener: {}", e);
-            return;
-        }
-    };
+    let listener = Listener::new(&config);
 
     // Start listening for transactions
-    println!("Listening for transactions to {:?}", config.target_address);
     if let Err(e) = listener.listen().await {
         eprintln!("Error listening for transactions: {}", e);
         return;
