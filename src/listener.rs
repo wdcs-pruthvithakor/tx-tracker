@@ -30,10 +30,10 @@ impl Listener {
             };
             
             let web3 = Web3::new(transport);
-            let mut sub = match web3.eth_subscribe().subscribe_new_pending_transactions().await {
+            let mut sub = match web3.eth_subscribe().subscribe_new_heads().await {
                 Ok(sub) => sub,
                 Err(e) => {
-                    eprintln!("Error subscribing to new transactions: {:?}. Retrying...", e);
+                    eprintln!("Error subscribing to new blocks: {:?}. Retrying...", e);
                     sleep(Duration::from_secs(5)).await;
                     continue;
                 }
@@ -42,42 +42,46 @@ impl Listener {
             // Start listening to new transactions
             println!("Listening for transactions to {:?}", self.target_address);
 
-            // Process incoming transactions
-            while let Some(tx_hash) = sub.next().await {
-                match tx_hash {
-                    Ok(tx_hash) => {
-                        // Fetch transaction details
-                        match web3.eth().transaction(web3::types::TransactionId::Hash(tx_hash)).await {
-                            Ok(Some(tx)) => {
-                                // Handle `from` and `to` addresses
-                                let from_address = match tx.from {
-                                    Some(from) => from,
-                                    None => {
-                                        eprintln!("Missing 'from' address in transaction: {:?}", tx_hash);
-                                        continue;
-                                    }
-                                };
+            // Process incoming blocks
+            while let Some(block_header) = sub.next().await {
+                match block_header {
+                    Ok(block_header) => {
+                        // Fetch block details
+                        match web3.eth().block_with_txs(web3::types::BlockId::Hash(block_header.hash.unwrap_or_default())).await {
+                            Ok(Some(block)) => {
+                                // Iterate through transactions in the block
+                                for tx in block.transactions {
+                                    // Handle `from` and `to` addresses
+                                    let from_address = match tx.from {
+                                        Some(from) => from,
+                                        None => {
+                                            eprintln!("Missing 'from' address in transaction: {:?}", tx.hash);
+                                            continue;
+                                        }
+                                    };
 
-                                let to_address = match tx.to {
-                                    Some(to) => to,
-                                    None => {
-                                        eprintln!("Missing 'to' address in transaction: {:?}", tx_hash);
-                                        continue;
-                                    }
-                                };
+                                    let to_address = match tx.to {
+                                        Some(to) => to,
+                                        None => {
+                                            eprintln!("Missing 'to' address in transaction: {:?}", tx.hash);
+                                            continue;
+                                        }
+                                    };
 
-                                if to_address == self.target_address {
-                                    let value_in_eth = self.convert_wei_to_eth(tx.value);
-                                    println!(
-                                        "New Transaction Received!\nTx Hash: {:?}\nFrom: {:?}\nTo: {:?}\nValue: {:?} ETH\n",
-                                        tx.hash,
-                                        from_address,
-                                        to_address,
-                                        value_in_eth
-                                    );
+                                    // If the transaction is to the target address
+                                    if to_address == self.target_address {
+                                        let value_in_eth = self.convert_wei_to_eth(tx.value);
+                                        println!(
+                                            "New Transaction Received!\nTx Hash: {:?}\nFrom: {:?}\nTo: {:?}\nValue: {:?} ETH\n",
+                                            tx.hash,
+                                            from_address,
+                                            to_address,
+                                            value_in_eth
+                                        );
+                                    }
                                 }
                             }
-                            Ok(None) => eprintln!("Transaction not found for hash: {:?}", tx_hash),
+                            Ok(None) => eprintln!("Transaction not found for block hash: {:?}", block_header.hash.unwrap_or_default()),
                             Err(e) => eprintln!("Error fetching transaction details: {:?}", e),
                         }
                     }
